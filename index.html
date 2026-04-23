@@ -363,23 +363,20 @@ function disambig(board, own, from, to, type) {
     if(myDir === 'down') return '引';
   }
 
-  // 動き方で区別できない → 左右を使う
-  // 先手から見て右 = col大きい方、左 = col小さい方
-  // （先手は下側、右は9筋方向=col小さい、左は1筋方向=col大きい）
-  const isRight = own === 'me' ? fc < tc || (fc === tc && fr > tr) : fc > tc || (fc === tc && fr < tr);
-
-  // 動き方が同じ候補が複数いる場合は左右だけでは足りない可能性
+  // 動き方が同じ候補が複数いる場合は左右を使う
   if(sameDirCount >= 1) {
     // 左右の判定
-    // 先手: col小さい方が右（9筋方向）、col大きい方が左（1筋方向）
-    // 同じ列から真上に動く場合は「直」
+    // 先手: col小さい=9筋方向=右、col大きい=1筋方向=左
+    // 後手: col大きい=1筋方向=右、col小さい=9筋方向=左（後手から見た右）
+    // 同じ列から前進する場合は「直」
     const getLR = (fromC, fromR) => {
-      if(fromC === tc && (tr - fromR) * d > 0) return '直'; // 同列から前進
-      return own === 'me' ? (fromC < tc ? '左' : '右') : (fromC > tc ? '左' : '右');
+      if(fromC === tc && (tr - fromR) * d > 0) return '直';
+      if(own === 'me') return fromC < tc ? '左' : '右';
+      return fromC > tc ? '左' : '右';
     };
     const myLRStr = getLR(fc, fr);
 
-    // 左右＋動き方が必要か（同じLRの候補がいるか）
+    // 同じLRの候補がいるか（左右だけでは区別できないか）
     const sameDir_sameLR = candidates.filter(([r,c]) => {
       const dir2 = moveDir(r,c);
       const lr2 = getLR(c, r);
@@ -387,23 +384,14 @@ function disambig(board, own, from, to, type) {
     });
 
     if(sameDir_sameLR.length === 0) {
-      // 左右だけで区別できる
       return myLRStr;
     } else {
-      // 左右＋動き方（3枚以上で同方向・同左右の駒がいる場合のみ）
+      // 左右＋動き方
       const dirStr = myDir==='up'?'上': myDir==='side'?'寄':'引';
       return myLRStr + dirStr;
     }
   }
 
-  // フォールバック
-  const lrStr = own === 'me'
-    ? (candidates.some(([,c]) => c < fc) ? '右' : '左')
-    : (candidates.some(([,c]) => c > fc) ? '右' : '左');
-
-  if(myDir === 'up')   return lrStr === '' ? '上' : lrStr;
-  if(myDir === 'side') return lrStr === '' ? '寄' : lrStr;
-  if(myDir === 'down') return lrStr === '' ? '引' : lrStr;
   return '';
 }
 
