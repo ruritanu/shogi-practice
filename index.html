@@ -100,8 +100,8 @@ header p{color:rgba(255,255,255,.4);font-size:12px;margin-top:4px;}
 .hand-piece:hover{border-color:var(--gold);}
 .hand-piece.active{border-color:var(--gold);background:#fffbf2;box-shadow:0 0 0 2px rgba(184,134,11,.2);}
 .hand-piece .cnt{font-family:'Noto Sans JP',sans-serif;font-size:9px;color:var(--muted);font-weight:600;line-height:1;}
-.hand-en .hand-piece{transform:rotate(180deg);}
-.hand-en .hand-piece.active{transform:rotate(180deg);}
+.hand-en .hand-piece{transform:none;}
+.hand-en .hand-piece.active{transform:none;}
 .move-count-wrap{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
 .move-count-label{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.1em;flex-shrink:0;}
 .move-count-btns{display:flex;gap:6px;}
@@ -808,16 +808,29 @@ function renderHand(){
     const el=document.getElementById(`hand-${own}-pieces`);
     el.innerHTML='';
     const h=hand&&hand[own]||{};
-    // 駒の表示順
     const order=['HI','KA','KI','GI','KE','KY','FU'];
+    const cur=moves[step];
     order.forEach(type=>{
       const cnt=h[type]||0;
       if(cnt===0) return;
-      const btn=document.createElement('div');
-      btn.className='hand-piece'+(selDrop===type&&own===(moves[step]&&moves[step].own)?' active':'');
-      btn.innerHTML=`${PN[type]}<span class="cnt">${cnt>1?cnt:''}</span>`;
-      btn.onclick=()=>tapHandPiece(own,type);
-      el.appendChild(btn);
+      const isActive = selDrop===type && own===(cur&&cur.own);
+      const wrap=document.createElement('div');
+      wrap.style.cssText='display:flex;flex-direction:column;align-items:center;cursor:pointer;';
+      // SVG駒を生成（盤面と同じmakePieceを流用）
+      const fakePiece={type,own:own==='me'?'me':'en',promoted:false};
+      const svg=makePiece(fakePiece,-1,-1,null);
+      if(isActive){
+        svg.querySelector('polygon').setAttribute('stroke','#b8860b');
+        svg.querySelector('polygon').setAttribute('stroke-width','2.5');
+      }
+      // 枚数
+      const cntEl=document.createElement('div');
+      cntEl.style.cssText=`font-family:'Noto Sans JP',sans-serif;font-size:9px;font-weight:700;color:var(--muted);line-height:1;margin-top:1px;`;
+      cntEl.textContent=cnt>1?cnt:'';
+      wrap.appendChild(svg);
+      wrap.appendChild(cntEl);
+      wrap.onclick=()=>tapHandPiece(own,type);
+      el.appendChild(wrap);
     });
   });
 }
