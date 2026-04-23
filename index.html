@@ -33,20 +33,18 @@ header p{color:rgba(255,255,255,.4);font-size:12px;margin-top:4px;}
 .sc-val.gold{color:var(--gold);}
 
 
-.kpanel{background:var(--surf);border:1.5px solid var(--bdr);border-radius:10px;padding:14px 16px;margin-bottom:12px;}
+.kpanel{background:#fff;border:1.5px solid var(--bdr);border-radius:10px;padding:12px 16px;margin-bottom:12px;}
 .klabel{font-size:10px;font-weight:700;letter-spacing:.15em;color:var(--muted);margin-bottom:10px;}
-.kmoves{display:flex;gap:6px;flex-wrap:wrap;}
-.kmove{display:flex;align-items:center;gap:6px;background:#fff;border:1.5px solid var(--bdr);border-radius:7px;padding:8px 12px;transition:all .2s;flex:1;min-width:90px;}
-.kmove.cur{border-color:var(--gold);background:#fffbf2;box-shadow:0 0 0 3px rgba(184,134,11,.12);}
-.kmove.done{opacity:.45;background:#f4f4f4;}
-.knum{width:18px;height:18px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;background:var(--ink);color:#fff;}
-.kmove.cur .knum{background:var(--gold);}
-.kmove.done .knum{background:#aaa;}
-.kplayer{font-size:10px;font-weight:700;}
+.kmoves{display:flex;gap:4px;flex-wrap:wrap;align-items:center;}
+.kmove{display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:6px;transition:all .2s;}
+.kmove.cur{background:#fffbf2;box-shadow:inset 0 0 0 1.5px var(--gold);}
+.kmove.done{opacity:.4;}
+.knum{font-family:'Noto Sans JP',sans-serif;font-size:10px;font-weight:700;color:var(--muted);}
+.kmove.cur .knum{color:var(--gold);}
+.kplayer{font-size:10px;font-weight:700;color:var(--muted);}
 .kplayer.g{color:var(--red);}
-.knote{font-family:'Noto Serif JP',serif;font-size:16px;font-weight:700;}
+.knote{font-family:'Noto Serif JP',serif;font-size:16px;font-weight:700;color:var(--ink);}
 .kmove.cur .knote{color:var(--gold);}
-
 .status{padding:10px 14px;border-radius:7px;font-size:13px;line-height:1.65;margin-bottom:10px;min-height:48px;background:#f9f4ec;border-left:3px solid var(--bdr);color:var(--muted);}
 .status.ok{background:#e6f4ea;border-left:3px solid var(--green);color:#1b4d2e;}
 .status.ng{background:#fce8e8;border-left:3px solid var(--red);color:#6b0f0f;}
@@ -341,14 +339,15 @@ function disambig(board, own, from, to, type) {
   // 動き方が被っているか
   const sameDirCount = otherDirs.filter(d2 => d2 === myDir).length;
 
-  // 動き方だけで区別できる場合
+  // 動き方だけで区別できる場合（竜・馬以外）
   if(sameDirCount === 0 && !isRyuUma) {
-    // 直（真上に動く金銀が横並びの特殊ケース）
-    if(myDir === 'up' && fc === tc && (type==='KI'||type==='GI'||type==='TO'||type==='NY'||type==='NK'||type==='NG')){
-      // 横に並んでいる同種駒が真上に動く場合は「直」
-      const sameColUp = candidates.filter(([r,c]) => c===fc);
-      if(sameColUp.length > 0) return '直';
-    }
+    if(myDir === 'up')   return '上';
+    if(myDir === 'side') return '寄';
+    if(myDir === 'down') return '引';
+  }
+
+  // 竜・馬で動き方だけで区別できる場合
+  if(sameDirCount === 0 && isRyuUma) {
     if(myDir === 'up')   return '上';
     if(myDir === 'side') return '寄';
     if(myDir === 'down') return '引';
@@ -361,29 +360,27 @@ function disambig(board, own, from, to, type) {
 
   // 動き方が同じ候補が複数いる場合は左右だけでは足りない可能性
   if(sameDirCount >= 1) {
-    // 左右で絞れるか確認
-    const myLR = own === 'me' ? (fc > candidates[0][1] ? '右' : '左') : (fc < candidates[0][1] ? '右' : '左');
+    // 左右の判定
+    // 先手: col小さい方が右（9筋方向）、col大きい方が左（1筋方向）
+    // 同じ列から真上に動く場合は「直」
+    const getLR = (fromC, fromR) => {
+      if(fromC === tc && (tr - fromR) * d > 0) return '直'; // 同列から前進
+      return own === 'me' ? (fromC < tc ? '左' : '右') : (fromC > tc ? '左' : '右');
+    };
+    const myLRStr = getLR(fc, fr);
 
-    // 左右＋動き方が必要か
+    // 左右＋動き方が必要か（同じLRの候補がいるか）
     const sameDir_sameLR = candidates.filter(([r,c]) => {
       const dir2 = moveDir(r,c);
-      const lr2 = own === 'me' ? (fc > c ? '右' : '左') : (fc < c ? '右' : '左');
-      return dir2 === myDir && lr2 === myLR;
+      const lr2 = getLR(c, r);
+      return dir2 === myDir && lr2 === myLRStr;
     });
-
-    const myLRStr = own === 'me'
-      ? (candidates.some(([r,c]) => c < fc) && candidates.some(([r,c]) => c > fc)
-          ? (fc > Math.min(...candidates.map(([,c])=>c)) && fc < Math.max(...candidates.map(([,c])=>c)) ? '直'
-            : fc < Math.min(...candidates.map(([,c])=>c)) ? '左' : '右')
-          : candidates[0][1] < fc ? '右' : '左')
-      : (candidates[0][1] > fc ? '右' : '左');
 
     if(sameDir_sameLR.length === 0) {
       // 左右だけで区別できる
-      if(isRyuUma || myDir === 'up') return myLRStr;
       return myLRStr;
     } else {
-      // 左右＋動き方
+      // 左右＋動き方（3枚以上で同方向・同左右の駒がいる場合のみ）
       const dirStr = myDir==='up'?'上': myDir==='side'?'寄':'引';
       return myLRStr + dirStr;
     }
@@ -523,7 +520,15 @@ function genRandom(board,hand){
     const isSame=prevTo&&prevTo[0]===m.t[0]&&prevTo[1]===m.t[1];
     const dest=isSame?'同　':`${col}${rowK}`;
     if(m.drop){
-      const boardCanMove=legal(b,own,{}).some(mv2=>!mv2.drop&&mv2.t[0]===m.t[0]&&mv2.t[1]===m.t[1]&&b[mv2.f[0]][mv2.f[1]].type===m.drop);
+      // 同じマスに同じ種類の盤上の駒が動ける場合のみ「打」を付ける
+      let boardCanMove = false;
+      for(let r=0;r<9;r++) for(let c=0;c<9;c++){
+        const p=b[r][c];
+        if(!p||p.own!==own||p.type!==m.drop) continue;
+        if(targets(b,r,c,own).some(([tr,tc])=>tr===m.t[0]&&tc===m.t[1])){
+          boardCanMove=true; break;
+        }
+      }
       const notation=`${pfx}${dest}${PN[m.drop]}${boardCanMove?'打':''}`;
       res.push({p:own==='me'?'s':'g',n:notation,f:null,t:m.t,drop:m.drop,own});
     } else {
