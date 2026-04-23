@@ -104,7 +104,12 @@ header p{color:rgba(255,255,255,.4);font-size:12px;margin-top:4px;}
 .hand-piece .cnt{font-family:'Noto Sans JP',sans-serif;font-size:9px;color:var(--muted);font-weight:600;line-height:1;}
 .hand-en .hand-piece{transform:rotate(180deg);}
 .hand-en .hand-piece.active{transform:rotate(180deg);}
-.help-body{padding:12px 14px;font-size:12px;line-height:2;color:#4a3820;display:none;}
+.move-count-wrap{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.move-count-label{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.1em;flex-shrink:0;}
+.move-count-btns{display:flex;gap:6px;}
+.mc-btn{background:var(--surf);border:1.5px solid var(--bdr);color:var(--muted);font-family:'Noto Sans JP',sans-serif;font-size:12px;font-weight:700;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all .15s;}
+.mc-btn:hover{border-color:var(--gold);color:var(--gold);}
+.mc-btn.active{background:var(--ink);color:#fff;border-color:var(--ink);}
 .help-body.open{display:block;}
 .ex{font-family:'Noto Serif JP',serif;font-size:15px;font-weight:700;color:var(--gold);}
 
@@ -125,7 +130,7 @@ footer{text-align:center;padding:16px;color:var(--muted);font-size:11px;border-t
 <div class="wrap">
 
   <div class="kpanel">
-    <div class="klabel">今回の3手</div>
+    <div class="klabel" id="klabel">今回の1手</div>
     <div class="kmoves" id="kmoves"></div>
   </div>
 
@@ -135,6 +140,16 @@ footer{text-align:center;padding:16px;color:var(--muted);font-size:11px;border-t
     <button class="btn pri" onclick="nextP()">▶ 次の問題</button>
     <button class="btn" onclick="doHint()">💡 ヒント</button>
     <button class="btn" onclick="autoPlay()">⚡ 自動</button>
+  </div>
+
+  <div class="move-count-wrap">
+    <span class="move-count-label">手数</span>
+    <div class="move-count-btns">
+      <button class="mc-btn active" onclick="setMoveCount(1,this)">1手</button>
+      <button class="mc-btn" onclick="setMoveCount(3,this)">3手</button>
+      <button class="mc-btn" onclick="setMoveCount(5,this)">5手</button>
+      <button class="mc-btn" onclick="setMoveCount(10,this)">10手</button>
+    </div>
   </div>
 
   <div class="board-layout">
@@ -184,7 +199,7 @@ footer{text-align:center;padding:16px;color:var(--muted);font-size:11px;border-t
       <b>▲</b> = 先手（下側）　<b>△</b> = 後手（上側）<br>
       <b>７六</b> = 移動先（列は右から１〜９、段は上から一〜九）<br>
       <b>歩</b> = 動かす駒の名前<br><br>
-      <b>操作：</b>光っている駒をタップ → 移動先をタップ
+      <b>操作：</b>棋譜を読んで動かす駒をタップ → 移動先をタップ
     </div>
   </div>
 
@@ -496,7 +511,8 @@ function genRandom(board,hand){
   const b=cloneB(board);
   const h={me:{...((hand&&hand.me)||{})},en:{...((hand&&hand.en)||{})}};
   const res=[];
-  const seq=['me','en','me'];
+  const seq=[];
+  for(let i=0;i<moveCount;i++) seq.push(i%2===0?'me':'en');
   let prevTo=null;
   for(const own of seq){
     const mv=legal(b,own,h);if(!mv.length) break;
@@ -530,6 +546,14 @@ function genRandom(board,hand){
 // ── state ──
 let board,hand,moves,step,sel,selDrop,hint,lastMove,playing;
 let score={ok:0,tot:0};
+let moveCount=1; // デフォルト1手
+
+function setMoveCount(n, btn){
+  moveCount=n;
+  document.querySelectorAll('.mc-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  nextP();
+}
 
 window.onload=()=>{buildDOM();nextP();};
 
@@ -585,6 +609,7 @@ function nextP(){
   moves = genRandom(board, hand);
   score.tot++;
   document.getElementById('sc-tot').textContent=score.tot;
+  document.getElementById('klabel').textContent=`今回の${moveCount}手`;
   updateRate();renderKifu();renderBoard();renderHand();showS('');
 }
 
@@ -757,7 +782,7 @@ function execMove(m){
   renderKifu();renderBoard();renderHand();flash(m.t[0],m.t[1],'cf');
   if(step>=moves.length){
     score.ok++;document.getElementById('sc-ok').textContent=score.ok;updateRate();
-    showS('🎉 3手完成！「次の問題」で続けましょう。','ok');
+    showS(`🎉 ${moveCount}手完成！「次の問題」で続けましょう。`,'ok');
   } else {
     showS(`✓ 正解！次の手：<b>${moves[step].n}</b>`,'ok');
   }
