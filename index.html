@@ -110,7 +110,7 @@ header p{color:rgba(255,255,255,.4);font-size:12px;margin-top:4px;}
 
 footer{text-align:center;padding:16px;color:var(--muted);font-size:11px;border-top:1px solid var(--bdr);letter-spacing:.06em;}
 
-@media(max-width:400px){:root{--cell-w:30px;--cell-h:34px;}.knote{font-size:14px;}}
+@media(max-width:400px){.knote{font-size:14px;}}
 </style>
 </head>
 <body>
@@ -385,14 +385,20 @@ function disambig(board, own, from, to, type) {
   return '';
 }
 
-function applyMove(b, m) {
-  const pc = b[m.f[0]][m.f[1]];
-  b[m.t[0]][m.t[1]] = {...pc};
-  b[m.f[0]][m.f[1]] = null;
-  if(m.promote) {
-    b[m.t[0]][m.t[1]].type = PM[pc.type] || pc.type;
-    b[m.t[0]][m.t[1]].promoted = true;
+// 指定した側の玉が王手されているか判定
+function isInCheck(board, own) {
+  let kr=-1, kc=-1;
+  outer: for(let r=0;r<9;r++) for(let c=0;c<9;c++){
+    if(board[r][c]&&board[r][c].own===own&&board[r][c].type==='OU'){kr=r;kc=c;break outer;}
   }
+  if(kr<0) return false;
+  const enemy=own==='me'?'en':'me';
+  for(let r=0;r<9;r++) for(let c=0;c<9;c++){
+    const p=board[r][c];
+    if(!p||p.own!==enemy) continue;
+    if(targets(board,r,c,enemy).some(([tr,tc])=>tr===kr&&tc===kc)) return true;
+  }
+  return false;
 }
 
 const UNPROMOTE={TO:'FU',NY:'KY',NK:'KE',NG:'GI',UM:'KA',RY:'HI'};
@@ -441,22 +447,28 @@ function dropTargets(board,own,type){
 }
 
 function legal(board,own,hand){
-  const res=[];
+  const raw=[];
   for(let r=0;r<9;r++)for(let c=0;c<9;c++){
     const p=board[r][c];if(!p||p.own!==own)continue;
     targets(board,r,c,own).forEach(([tr,tc])=>{
-      const t=board[tr][tc];if(!t||t.own!==own)res.push({f:[r,c],t:[tr,tc]});
+      const t=board[tr][tc];if(!t||t.own!==own)raw.push({f:[r,c],t:[tr,tc]});
     });
   }
   if(hand&&hand[own]){
     Object.keys(hand[own]).forEach(type=>{
       if(!hand[own][type]) return;
       dropTargets(board,own,type).forEach(([tr,tc])=>{
-        res.push({f:null,t:[tr,tc],drop:type,own});
+        raw.push({f:null,t:[tr,tc],drop:type,own});
       });
     });
   }
-  return res;
+  // 王手放置フィルター：手を指した後に自分の玉が王手になる手を除外
+  return raw.filter(m=>{
+    const b2=cloneB(board);
+    const h2=hand?{me:{...(hand.me||{})},en:{...(hand.en||{})}}:null;
+    applyMove(b2,m,h2);
+    return !isInCheck(b2,own);
+  });
 }
 
 function advanceBoard(n){
@@ -522,6 +534,14 @@ let score={ok:0,tot:0};
 window.onload=()=>{buildDOM();nextP();};
 
 function buildDOM(){
+  // 画面幅からセルサイズを動的計算
+  // 盤面幅 = 9*cw、両側に持ち駒(36px)×2、gap(16px)×2、行ラベル(22px)、wrap padding(24px)
+  const available = window.innerWidth - 36*2 - 16*2 - 22 - 24;
+  const cw = Math.floor(Math.min(34, available / 9));
+  const ch = Math.round(cw * 38/34);
+  document.documentElement.style.setProperty('--cell-w', cw+'px');
+  document.documentElement.style.setProperty('--cell-h', ch+'px');
+
   const cl=document.getElementById('col-labels');
   for(let c=0;c<9;c++){const d=document.createElement('div');d.className='col-label';d.textContent=9-c;cl.appendChild(d);}
   const rl=document.getElementById('row-labels');
@@ -535,9 +555,6 @@ function buildDOM(){
     boardEl2.appendChild(cell);
   }
   // セル生成後に星を描画
-  const firstCell = document.getElementById('c00');
-  const cw = firstCell ? firstCell.offsetWidth  : 34;
-  const ch = firstCell ? firstCell.offsetHeight : 38;
   const finalSvg = document.getElementById('stars-svg');
   finalSvg.setAttribute('width',  boardEl2.offsetWidth);
   finalSvg.setAttribute('height', boardEl2.offsetHeight);
