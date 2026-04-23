@@ -238,12 +238,20 @@ function targets(board,r,c,own){
     case 'FU':add(r+d,c);break;
     case 'KY':slide(d,0);break;
     case 'KE':add(r+2*d,c-1);add(r+2*d,c+1);break;
-    case 'GI':[[-1,-1],[-1,0],[-1,1],[1,-1],[1,1]].forEach(([dr,dc])=>add(r+dr,c+dc));break;
-    case 'KI':case 'TO':case 'NY':case 'NK':case 'NG':[[d,0],[0,-1],[0,1],[-d,0],[d,-1],[d,1]].forEach(([dr,dc])=>add(r+dr,c+dc));break;
+    // 銀：前3方向＋斜め後ろ2方向
+    case 'GI':[[d,-1],[d,0],[d,1],[-d,-1],[-d,1]].forEach(([dr,dc])=>add(r+dr,c+dc));break;
+    // 金・成駒：前3方向＋横2方向＋真後ろ（斜め後ろ除く）
+    case 'KI':case 'TO':case 'NY':case 'NK':case 'NG':
+      [[d,-1],[d,0],[d,1],[0,-1],[0,1],[-d,0]].forEach(([dr,dc])=>add(r+dr,c+dc));break;
     case 'KA':slide(-1,-1);slide(-1,1);slide(1,-1);slide(1,1);break;
     case 'HI':slide(-1,0);slide(1,0);slide(0,-1);slide(0,1);break;
-    case 'UM':slide(-1,-1);slide(-1,1);slide(1,-1);slide(1,1);[[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc])=>add(r+dr,c+dc));break;
-    case 'RY':slide(-1,0);slide(1,0);slide(0,-1);slide(0,1);[[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([dr,dc])=>add(r+dr,c+dc));break;
+    // 馬：角の動き＋隣接4方向
+    case 'UM':slide(-1,-1);slide(-1,1);slide(1,-1);slide(1,1);
+      [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc])=>add(r+dr,c+dc));break;
+    // 龍：飛の動き＋斜め隣接4方向
+    case 'RY':slide(-1,0);slide(1,0);slide(0,-1);slide(0,1);
+      [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([dr,dc])=>add(r+dr,c+dc));break;
+    // 玉：全8方向1マス
     case 'OU':for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++)if(dr||dc)add(r+dr,c+dc);break;
   }
   return res.filter(([tr,tc])=>inB(tr,tc));
